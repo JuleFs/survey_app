@@ -5,15 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Download, Users, BarChart3, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts"
-import { api, type SurveyStat, type QuestionStat } from "@/lib/api"
+import { api, type SurveyStat } from "@/lib/api"
 
 export default function SurveyStats({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
   const [stats, setStats] = useState<SurveyStat | null>(null)
   const [loading, setLoading] = useState(true)
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const resolvedParams = use(params)
 
   useEffect(() => {
     loadStats()
@@ -37,6 +36,7 @@ export default function SurveyStats({ params }: { params: Promise<{ id: string }
       setExporting(true)
       const data = await api.exportSurveyData(resolvedParams.id)
 
+      // Crear y descargar el archivo JSON
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
       const url = URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -97,16 +97,11 @@ export default function SurveyStats({ params }: { params: Promise<{ id: string }
   }
 
   const calculateCompletionRate = () => {
-    if (stats.sections.length === 0 && stats.questions.length === 0) return 0
-    const totalQuestions = stats.sections.reduce((sum, s) => sum + s.questions.length, 0) + stats.questions.length
-    const totalPossibleResponses = stats.total_responses * totalQuestions
-    const actualResponses =
-      stats.sections.reduce((sum, s) => sum + s.questions.reduce((qs, q) => qs + q.total_responses, 0), 0) +
-      stats.questions.reduce((sum, q) => sum + q.total_responses, 0)
+    if (stats.questions.length === 0) return 0
+    const totalPossibleResponses = stats.total_responses * stats.questions.length
+    const actualResponses = stats.questions.reduce((sum, q) => sum + q.total_responses, 0)
     return totalPossibleResponses > 0 ? Math.round((actualResponses / totalPossibleResponses) * 100) : 0
   }
-
-  const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#14B8A6", "#6B7280"]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -162,9 +157,7 @@ export default function SurveyStats({ params }: { params: Promise<{ id: string }
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Preguntas</p>
-                  <p className="text-2xl font-bold">
-                    {stats.sections.reduce((sum, s) => sum + s.questions.length, 0) + stats.questions.length}
-                  </p>
+                  <p className="text-2xl font-bold">{stats.questions.length}</p>
                 </div>
               </div>
             </CardContent>
@@ -186,141 +179,114 @@ export default function SurveyStats({ params }: { params: Promise<{ id: string }
         </div>
 
         <div className="space-y-6">
-          {stats.sections.map((section, sectionIndex) => (
-            <div key={section.section_id} className="border-b pb-6 last:border-b-0">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Sección: {section.section_title}</h3>
+          {stats.questions.map((question, index) => (
+            <Card key={question.question_id}>
+              <CardHeader>
+                <CardTitle className="text-lg">
+                  Pregunta {index + 1}: {question.question_text}
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  {question.total_responses} respuestas • Tipo: {question.question_type}
+                </p>
+              </CardHeader>
+              <CardContent>
+                {question.question_type === "likert" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-600">Promedio:</span>
+                      <span className="text-xl font-bold text-blue-600">
+                        {question.average_value?.toFixed(1) || "N/A"}/5
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {Object.entries(question.distribution).map(([value, count]) => (
+                        <div key={value} className="flex items-center gap-4">
+                          <span className="w-8 text-sm">{value}</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-4">
+                            <div
+                              className="bg-blue-500 h-4 rounded-full"
+                              style={{
+                                width: `${question.total_responses > 0 ? (count / question.total_responses) * 100 : 0}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-600 w-16">
+                            {count} (
+                            {question.total_responses > 0 ? Math.round((count / question.total_responses) * 100) : 0}%)
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-1 gap-6">
-                {section.questions.map((question) => (
-                  <QuestionStatChart key={question.question_id} question={question} colors={COLORS} />
-                ))}
-              </div>
-            </div>
+                {question.question_type === "yesno" && (
+                  <div className="space-y-2">
+                    {Object.entries(question.distribution).map(([value, count]) => (
+                      <div key={value} className="flex items-center gap-4">
+                        <span className="w-12 text-sm">{value}</span>
+                        <div className="flex-1 bg-gray-200 rounded-full h-6">
+                          <div
+                            className={`h-6 rounded-full ${value === "Sí" ? "bg-green-500" : "bg-red-500"}`}
+                            style={{
+                              width: `${question.total_responses > 0 ? (count / question.total_responses) * 100 : 0}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-sm text-gray-600 w-16">
+                          {count} (
+                          {question.total_responses > 0 ? Math.round((count / question.total_responses) * 100) : 0}%)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {question.question_type === "numeric" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-600">Promedio:</span>
+                      <span className="text-xl font-bold text-purple-600">
+                        {question.average_value?.toFixed(1) || "N/A"}/10
+                      </span>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-2">Distribución de respuestas:</p>
+                      <div className="flex gap-1">
+                        {Array.from({ length: 11 }, (_, i) => {
+                          const count = question.distribution[i.toString()] || 0
+                          const maxCount = Math.max(...Object.values(question.distribution))
+                          const height = maxCount > 0 ? (count / maxCount) * 40 + 10 : 10
+                          return (
+                            <div key={i} className="flex-1 text-center">
+                              <div
+                                className="bg-purple-500 rounded-t mx-auto"
+                                style={{
+                                  height: `${height}px`,
+                                  width: "80%",
+                                  opacity: 0.7,
+                                }}
+                                title={`${i}: ${count} respuestas`}
+                              />
+                              <span className="text-xs text-gray-500">{i}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {question.total_responses === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No hay respuestas para esta pregunta</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           ))}
-
-          {stats.questions.length > 0 && (
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Preguntas Generales</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {stats.questions.map((question) => (
-                  <QuestionStatChart key={question.question_id} question={question} colors={COLORS} />
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>
-  )
-}
-
-function QuestionStatChart({
-  question,
-  colors,
-}: {
-  question: QuestionStat
-  colors: string[]
-}) {
-  const pieData = Object.entries(question.distribution).map(([value, count]) => ({
-    name: value,
-    value: count,
-  }))
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{question.question_text}</CardTitle>
-        <p className="text-sm text-gray-600 mt-1">
-          {question.total_responses} respuestas • Tipo: {question.question_type}
-        </p>
-      </CardHeader>
-      <CardContent>
-        {question.question_type === "likert" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">Promedio:</span>
-              <span className="text-xl font-bold text-blue-600">{question.average_value?.toFixed(1) || "N/A"}/5</span>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `${value} respuestas`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {question.question_type === "yesno" && (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }) => `${name}: ${value}`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => `${value} respuestas`} />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-
-        {question.question_type === "numeric" && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">Promedio:</span>
-              <span className="text-xl font-bold text-purple-600">
-                {question.average_value?.toFixed(1) || "N/A"}/10
-              </span>
-            </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `${value} respuestas`} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {question.total_responses === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            <p>No hay respuestas para esta pregunta</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   )
 }
