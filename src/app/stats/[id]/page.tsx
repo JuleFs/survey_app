@@ -226,6 +226,14 @@ function QuestionStatChart({
     value: count,
   }))
 
+  const likertLabelMap: Record<string, string> = {
+    "5": "Totalmente de acuerdo",
+    "4": "De acuerdo",
+    "3": "Ni de acuerdo ni en desacuerdo",
+    "2": "En desacuerdo",
+    "1": "Totalmente en desacuerdo",
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -248,7 +256,7 @@ function QuestionStatChart({
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
+                  label={({ name, value }) => `${likertLabelMap[String(name)] ?? name}: ${value}`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"

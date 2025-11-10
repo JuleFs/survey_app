@@ -666,10 +666,7 @@ export default function SurveyEditor() {
             </TabsContent>
 
             <TabsContent value="preview">
-              <PDFPreview
-                survey={getOrganizedSurvey()}
-                onGeneratePDF={generatePDF}
-              />
+              <PDFPreview survey={getOrganizedSurvey()} />
             </TabsContent>
           </Tabs>
 

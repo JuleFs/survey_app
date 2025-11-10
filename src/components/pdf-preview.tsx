@@ -1,16 +1,14 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Download, Eye } from "lucide-react";
 import type { Survey } from "@/lib/api";
 
 interface PDFPreviewProps {
   survey: Survey;
-  onGeneratePDF?: () => void;
 }
 
-export function PDFPreview({ survey, onGeneratePDF }: PDFPreviewProps) {
+export function PDFPreview({ survey }: PDFPreviewProps) {
   const themeColors = {
     "#3B82F6": "Azul",
     "#10B981": "Verde",
@@ -359,24 +357,6 @@ export function PDFPreview({ survey, onGeneratePDF }: PDFPreviewProps) {
             </div>
           )}
         </div>
-
-        {/* PDF Settings Summary */}
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm">
-          <h4 className="font-semibold mb-2">Configuración PDF:</h4>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div>Tamaño: {survey.pdf_settings?.page_size || "A4"}</div>
-            <div>
-              Orientación: Vertical
-            </div>
-          </div>
-        </div>
-
-        {onGeneratePDF && (
-          <Button onClick={onGeneratePDF} className="w-full mt-4">
-            <Download className="w-4 h-4 mr-2" />
-            Generar PDF
-          </Button>
-        )}
       </CardContent>
     </Card>
   );
