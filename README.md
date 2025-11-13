@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧩 App de Encuestas
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Status](https://img.shields.io/badge/status-En%20desarrollo-yellow)
+![Tech](https://img.shields.io/badge/stack-React%20%2B%20Next%20%7C%20FastAPI%20%7C%20PostgreSQL-blue)
 
-## Getting Started
+> Aplicación web para crear, responder y gestionar encuestas académicas.  
+> Frontend en **React + Next.js**, backend en **Python + FastAPI**, y base de datos en **PostgreSQL** dentro de contenedores **Docker**.
 
-First, run the development server:
+---
 
+## 🚀 Tecnologías Principales
+
+| Capa        | Tecnología                                |
+|--------------|--------------------------------------------|
+| **Frontend** | React 19, Next.js 15, TypeScript, TailwindCSS |
+| **Backend**  | Python 3.11, FastAPI, SQLAlchemy, Pydantic |
+| **Base de Datos** | PostgreSQL (contenedor Docker) |
+
+---
+
+## 🧠 Descripción General
+
+La aplicación permite:
+- Registrar encuestas y preguntas organizadas por secciones.
+- Enviar encuestas a estudiantes.
+- Recibir y almacenar respuestas anónimas.
+- Visualizar métricas agregadas por pregunta o encuesta.
+
+El sistema se organiza en dos partes principales:
+1. **Frontend (React + Next.js):** UI moderna, SPA optimizada, consumo de API y manejo de estado con hooks.  
+2. **Backend (FastAPI):** API REST con endpoints protegidos, validaciones con Pydantic y persistencia con SQLAlchemy.
+
+---
+
+## ⚙️ Instalación y Ejecución
+
+### 1️⃣ Clonar el repositorio
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/UASFIM/btecnologicas-front
+cd btecnologicas-front
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2️⃣ Variables de entorno
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Crea un archivo .env en la raíz del proyecto con el siguiente contenido:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-## Learn More
+3️⃣ Ejecutar
+```bash
+pnpm install
+pnpm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+📁 Estructura del Proyecto
+```bash
+📦 survey-manager
+├── frontend/                 # React + Next.js app
+│   ├── app/
+│   |    ├── editor/
+│   |    ├── survey/
+│   |    ├── stats/
+│   ├── components/
+│   |    ├── ui/
+│   ├── hooks/
+│   ├── lib/
+│   |    ├── api.ts
+│   |    ├── utils.ts
+├── .env.example
+└── README.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+📊 Flujo de la Aplicación
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **El usuario accede a la interfaz y selecciona una encuesta.**
+2. **El frontend solicita las preguntas al backend (GET /surveys/{id}).**
+3. **El usuario responde y envía el formulario (POST /surveys/{id}/responses).**
+4. **El backend guarda las respuestas en PostgreSQL.**
+5. **Se pueden consultar resultados y métricas globales.**
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+🧩 Funcionalidades Pendientes
+- Tests automatizados.
+- Desplegar en producción.
