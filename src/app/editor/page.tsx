@@ -180,16 +180,6 @@ export default function SurveyEditor() {
     }
   };
 
-  const generatePDF = async () => {
-    try {
-      // Simular generación de PDF
-      console.log("Generando PDF con configuración:", survey.pdf_settings);
-      alert("PDF generado exitosamente (funcionalidad simulada)");
-    } catch (err) {
-      setError("Error al generar el PDF");
-    }
-  };
-
   // Obtener preguntas organizadas por sección para la vista previa
   const getOrganizedSurvey = () => {
     const sectionsWithQuestions = survey.sections.map((section) => ({

@@ -18,6 +18,9 @@ import {
   type QuestionResponseCreate,
   type SectionWithQuestions,
 } from "@/lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useRespondentId } from "@/hooks/use-respondent-id";
+import { toast } from "sonner";
 
 interface Response {
   questionId: string;
@@ -29,24 +32,75 @@ export default function SurveyResponse({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const resolvedParams = use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const respondentId = useRespondentId();
+
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [responses, setResponses] = useState<Response[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const resolvedParams = use(params);
+  const [invitationToken, setInvitationToken] = useState<string | null>(null);
+  const [isRespondentMode, setIsRespondentMode] = useState(false);
 
   useEffect(() => {
+    // Obtener token de la URL si existe
+    const token = searchParams.get("token");
+    if (token) {
+      setInvitationToken(token);
+      setIsRespondentMode(true);
+      validateToken(token);
+    } else {
+      // Sin token, redirigir a admin o cargar normalmente
+      setIsRespondentMode(false);
+    }
     loadSurvey();
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, searchParams]);
+
+  const validateToken = async (token: string) => {
+    try {
+      const result = await api.validateInvitation(token);
+      if (!result.valid) {
+        setError("El link ha expirado o no es válido");
+      }
+    } catch (err) {
+      setError("El link ha expirado o no es válido");
+    }
+  };
+
+  const checkIfCanRespond = async () => {
+    try {
+      const result = await api.checkRespondent(resolvedParams.id, respondentId);
+      if (!result.can_respond) {
+        setError("Ya has respondido esta encuesta desde este dispositivo");
+        return false;
+      }
+      return true;
+    } catch (err) {
+      toast.error("Error al verificar respuesta anterior");
+      return false;
+    }
+  };
 
   const loadSurvey = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await api.getSurvey(resolvedParams.id);
+      if (!data.is_active) {
+        setError("Esta encuesta no está disponible en este momento");
+        return;
+      }
+
       setSurvey(data);
+
+      // Verificar si ya respondió
+      if (respondentId) {
+        await checkIfCanRespond();
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Error al cargar la encuesta"
@@ -76,8 +130,21 @@ export default function SurveyResponse({
     if (!survey) return;
 
     try {
+      // Verificar nuevamente si puede responder
+      const canRespond = await checkIfCanRespond();
+      if (!canRespond) {
+        setError("Ya has respondido esta encuesta desde este dispositivo");
+        return;
+      }
+
       setSubmitting(true);
       setError(null);
+
+      try {
+        await api.checkRespondent(survey.id, respondentId);
+      } catch (err) {
+        // Ignorar si hay error, continuar con el envío
+      }
 
       const apiResponses: QuestionResponseCreate[] = responses.map(
         (response) => ({
@@ -88,6 +155,7 @@ export default function SurveyResponse({
 
       await api.submitResponse(survey.id, {
         survey_id: survey.id,
+        respondent_id: respondentId,
         responses: apiResponses,
       });
 
@@ -124,19 +192,19 @@ export default function SurveyResponse({
     );
   }
 
-  if (error) {
+  if (error && error.includes("expirado") && !survey) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Link no válido
+          </h2>
           <p className="text-gray-600 mb-4">{error}</p>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={loadSurvey}>Reintentar</Button>
-            <Link href="/">
-              <Button variant="outline">Volver al inicio</Button>
-            </Link>
-          </div>
+
+          <Link href="/">
+            <Button variant="outline">Volver al inicio</Button>
+          </Link>
         </div>
       </div>
     );
@@ -169,9 +237,15 @@ export default function SurveyResponse({
           <p className="text-gray-600 mb-6">
             Tu respuesta ha sido enviada exitosamente.
           </p>
-          <Link href="/">
-            <Button>Volver al inicio</Button>
-          </Link>
+          {!isRespondentMode ? (
+            <Link href="/">
+              <Button>Volver al inicio</Button>
+            </Link>
+          ) : (
+            <div className="text-gray-600 text-sm">
+              <p>Puedes cerrar esta ventana.</p>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -195,13 +269,15 @@ export default function SurveyResponse({
         )}
 
         <div className="flex items-center gap-4 mb-8">
-          <Link href="/">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Volver
-            </Button>
-          </Link>
-          <div>
+          {!isRespondentMode ? (
+            <Link href="/">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Volver
+              </Button>
+            </Link>
+          ) : null}
+          <div className={isRespondentMode ? "" : "flex-1"}>
             <h1 className="text-3xl font-bold text-gray-900">{survey.title}</h1>
             <p className="text-gray-600 mt-2">{survey.description}</p>
           </div>
@@ -211,14 +287,6 @@ export default function SurveyResponse({
           <div className="mx-auto mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h3 className="font-semibold text-blue-900 mb-2">Instrucciones</h3>
             <p className="text-blue-800 text-sm">{survey.instructions}</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="max-w-2xl mx-auto mb-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-red-800">{error}</p>
-            </div>
           </div>
         )}
 
@@ -290,6 +358,14 @@ export default function SurveyResponse({
                         }
                       />
                     ))}
+                </div>
+              )}
+
+              {error && (
+                <div className="max-w-2xl mx-auto mb-6">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-800">{error}</p>
+                  </div>
                 </div>
               )}
 

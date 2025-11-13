@@ -107,6 +107,18 @@ export interface UploadedFile {
   created_at: string;
 }
 
+// Tipos para invitaciones
+export interface SurveyInvitation {
+  id: string
+  token: string
+  survey_id: string
+  expires_at: string
+  created_at: string
+  is_active: boolean
+  is_expired: boolean
+  responses_count: number
+}
+
 // Funciones para interactuar con la API
 export const api = {
   // Obtener todas las encuestas
@@ -263,7 +275,6 @@ export const api = {
     surveyId: string,
     responseData: SurveyResponseCreate
   ): Promise<{ message: string; response_id: string }> {
-    console.log("Enviando datos de respuesta:", responseData);
     const response = await fetch(
       `${API_BASE_URL}/surveys/${surveyId}/responses`,
       {
@@ -297,5 +308,63 @@ export const api = {
       throw new Error("Error al exportar los datos");
     }
     return response.json();
+  },
+
+  // Crear invitación
+  async createInvitation(surveyId: string, expiresInHours = 24): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/surveys/${surveyId}/invitations?expires_in_hours=${expiresInHours}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+    if (!response.ok) {
+      throw new Error("Error al crear invitación")
+    }
+    return response.json()
+  },
+
+  // Obtener invitaciones
+  async getInvitations(surveyId: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/surveys/${surveyId}/invitations`)
+    if (!response.ok) {
+      throw new Error("Error al obtener invitaciones")
+    }
+    return response.json()
+  },
+
+  // Validar invitación
+  async validateInvitation(token: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/surveys/validate-invitation/${token}`)
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.detail || "Invitación no válida")
+    }
+    return response.json()
+  },
+
+  // Verificar si puede responder
+  async checkRespondent(surveyId: string, respondentIdentifier: string): Promise<any> {
+    const response = await fetch(
+      `${API_BASE_URL}/surveys/${surveyId}/check-respondent?respondent_identifier=${respondentIdentifier}`,
+      {
+        method: "POST",
+      },
+    )
+    if (!response.ok) {
+      throw new Error("Error al verificar respondiente")
+    }
+    return response.json()
+  },
+
+  // Desactivar invitación
+  async deactivateInvitation(surveyId: string, token: string): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/surveys/${surveyId}/deactivate-invitation/${token}`, {
+      method: "POST",
+    })
+    if (!response.ok) {
+      throw new Error("Error al desactivar invitación")
+    }
+    return response.json()
   },
 };
